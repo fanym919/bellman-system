@@ -1,19 +1,19 @@
-#![allow(unused_imports)]
+//#![allow(unused_imports)]
 #![allow(unused_variables)]
 extern crate bellman;
 extern crate pairing;
 extern crate rand;
-use bellman::{Circuit, ConstraintSystem, SynthesisError, groth16::{Parameters, VerifyingKey}};
-use pairing::{Engine, Field, PrimeField};
-use std::{fs, env, io::{Error, Read}};
+use bellman::{groth16::{Parameters}};
+use pairing::{PrimeField};
+use std::{fs, env, io::{Error}};
 
-mod cube; 
+mod cube;
 
 fn main() -> Result<(), Error> {
     use pairing::bls12_381::{Bls12, Fr};
     use rand::thread_rng;
     use bellman::groth16::{
-        create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof, Proof,
+        create_random_proof
     };
 
     let args: Vec<_> = env::args().collect();

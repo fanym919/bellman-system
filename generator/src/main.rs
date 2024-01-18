@@ -27,7 +27,11 @@ fn main() -> Result<(), Error> {
     // Create parameters for our circuit
     let params = {
         let c = cube::CubeDemo::<Bls12> {
-            x: None
+            x: None,
+            tmp_1: None,
+            y: None,
+            tmp_2: None,
+            out: None
         };
 
         generate_random_parameters(c, rng).unwrap()

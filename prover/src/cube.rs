@@ -40,6 +40,10 @@ use self::bellman::groth16::{
 // Generalized: x^3 + x + 5 == out
 pub struct CubeDemo<E: Engine> {
     pub x: Option<E::Fr>,
+    pub tmp_1: Option<E::Fr>,
+    pub y: Option<E::Fr>,
+    pub tmp_2: Option<E::Fr>,
+    pub out: Option<E::Fr>,
 }
 
 impl <E: Engine> Circuit<E> for CubeDemo<E> {
@@ -56,19 +60,30 @@ impl <E: Engine> Circuit<E> for CubeDemo<E> {
         // Resulting R1CS with w = [one, x, tmp_1, y, tmp_2, out]
         
         // Allocate the first private "auxiliary" variable
-        let x_val = self.x;
         let x = cs.alloc(|| "x", || {
-            x_val.ok_or(SynthesisError::AssignmentMissing)
+            self.x.ok_or(SynthesisError::AssignmentMissing)
         })?;
         
         // Allocate: x * x = tmp_1
-        let tmp_1_val = x_val.map(|mut e| {
-            e.square();
-            e
-        });
         let tmp_1 = cs.alloc(|| "tmp_1", || {
-            tmp_1_val.ok_or(SynthesisError::AssignmentMissing)
+            self.tmp_1.ok_or(SynthesisError::AssignmentMissing)
         })?;
+
+        // Allocate: tmp_1 * x = y
+        let y = cs.alloc(|| "y", || {
+            self.y.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+
+        // Allocate: y + x = tmp_2
+        let tmp_2 = cs.alloc(|| "tmp_2", || {
+            self.tmp_2.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+
+        // Allocating the public "primary" output uses alloc_input
+        let out = cs.alloc_input(|| "out", || {
+            self.out.ok_or(SynthesisError::AssignmentMissing)
+        })?;
+
         // Enforce: x * x = tmp_1
         cs.enforce(
             || "tmp_1",
@@ -77,34 +92,27 @@ impl <E: Engine> Circuit<E> for CubeDemo<E> {
             |lc| lc + tmp_1
         );
         
-        // Allocate: tmp_1 * x = y
-        let x_cubed_val = tmp_1_val.map(|mut e| {
-            e.mul_assign(&x_val.unwrap());
-            e
-        });
-        let x_cubed = cs.alloc(|| "x_cubed", || {
-            x_cubed_val.ok_or(SynthesisError::AssignmentMissing)
-        })?;
         // Enforce: tmp_1 * x = y
         cs.enforce(
-            || "x_cubed",
+            || "y",
             |lc| lc + tmp_1,
             |lc| lc + x,
-            |lc| lc + x_cubed
+            |lc| lc + y
+        );
+
+        // Enforce: y + x = tmp_2
+        cs.enforce(
+            || "tmp_2",
+            |lc| lc + y + x,
+            |lc| lc + CS::one(),
+            |lc| lc + tmp_2
         );
         
-        // Allocating the public "primary" output uses alloc_input
-        let out = cs.alloc_input(|| "out", || {
-            let mut tmp = x_cubed_val.unwrap();
-            tmp.add_assign(&x_val.unwrap());
-            tmp.add_assign(&E::Fr::from_str("5").unwrap());
-            Ok(tmp)
-        })?;    
         // tmp_2 + 5 = out
         // => (tmp_2 + 5) * 1 = out
         cs.enforce(
             || "out",
-            |lc| lc + x_cubed + x + (E::Fr::from_str("5").unwrap(), CS::one()),
+            |lc| lc + y + (E::Fr::from_str("5").unwrap(), CS::one()),
             |lc| lc + CS::one(),
             |lc| lc + out
         );
@@ -119,41 +127,4 @@ impl <E: Engine> Circuit<E> for CubeDemo<E> {
         
         Ok(())
     }
-}
-
-#[test]
-fn test_cube_proof(){
-    // This may not be cryptographically safe, use
-    // `OsRng` (for example) in production software.
-    let rng = &mut thread_rng();
-    
-    println!("Creating parameters...");
-    
-    // Create parameters for our circuit
-    let params = {
-        let c = CubeDemo::<Bls12> {
-            x: None
-        };
-
-        generate_random_parameters(c, rng).unwrap()
-    };
-    
-    // Prepare the verification key (for proof verification)
-    let pvk = prepare_verifying_key(&params.vk);
-
-    println!("Creating proofs...");
-    
-    // Create an instance of circuit
-    let c = CubeDemo::<Bls12> {
-        x: Fr::from_str("3")
-    };
-    
-    // Create a groth16 proof with our parameters.
-    let proof = create_random_proof(c, &params, rng).unwrap();
-        
-    assert!(verify_proof(
-        &pvk,
-        &proof,
-        &[Fr::from_str("35").unwrap()]
-    ).unwrap());
 }

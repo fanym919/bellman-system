@@ -31,13 +31,24 @@ fn main() -> Result<(), Error> {
 
     let proof = Proof::<Bls12>::read(&mut proof_f).unwrap();
         
-    assert!(verify_proof(
-        &pvk,
-        &proof,
-        &[Fr::from_str("35").unwrap()]
-    ).unwrap());
+    // assert!(verify_proof(
+    //     &pvk,
+    //     &proof,
+    //     &[Fr::from_str("35").unwrap()]
+    // ).unwrap());
 
-    println!("Verification PASS");
+    let verified = verify_proof(
+            &pvk,
+            &proof,
+            &[Fr::from_str("35").unwrap()]
+        ).unwrap();
+
+    if verified {
+        println!("Verification PASS");
+    }
+    else {
+        println!("Verification Fail");
+    }
 
     Ok(())
 }

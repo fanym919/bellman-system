@@ -82,7 +82,9 @@ impl <E: Engine> Circuit<E> for CubeDemo<E> {
         // Allocating the public "primary" output uses alloc_input
         let out = cs.alloc_input(|| "out", || {
             self.out.ok_or(SynthesisError::AssignmentMissing)
-        })?;
+        })?;  
+
+
 
         // Enforce: x * x = tmp_1
         cs.enforce(
@@ -107,12 +109,12 @@ impl <E: Engine> Circuit<E> for CubeDemo<E> {
             |lc| lc + CS::one(),
             |lc| lc + tmp_2
         );
-        
+          
         // tmp_2 + 5 = out
         // => (tmp_2 + 5) * 1 = out
         cs.enforce(
             || "out",
-            |lc| lc + y + (E::Fr::from_str("5").unwrap(), CS::one()),
+            |lc| lc + tmp_2 + (E::Fr::from_str("5").unwrap(), CS::one()),
             |lc| lc + CS::one(),
             |lc| lc + out
         );
